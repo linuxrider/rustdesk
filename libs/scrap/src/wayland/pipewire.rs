@@ -616,6 +616,16 @@ fn on_create_session_response(
                 failure.clone(),
             )?;
         } else {
+            if let Ok(version) = remote_desktop_portal::version(&portal) {
+                if version >= 2 {
+                    let restore_token = config::LocalConfig::get_option(RESTORE_TOKEN_CONF_KEY);
+                    if !restore_token.is_empty() {
+                        args.insert(RESTORE_TOKEN.to_string(), Variant(Box::new(restore_token)));
+                    }
+                    // persist_mode may be configured by the user.
+                    args.insert("persist_mode".to_string(), Variant(Box::new(2u32)));
+                }
+            }
             args.insert(
                 "handle_token".to_string(),
                 Variant(Box::new("u2".to_string())),
@@ -717,6 +727,19 @@ fn on_start_response(
         if is_server_running() {
             if let Ok(version) = screencast_portal::version(&portal) {
                 if version >= 4 {
+                    if let Some(restore_token) = r.results.get(RESTORE_TOKEN) {
+                        if let Some(restore_token) = restore_token.as_str() {
+                            config::LocalConfig::set_option(
+                                RESTORE_TOKEN_CONF_KEY.to_owned(),
+                                restore_token.to_owned(),
+                            );
+                        }
+                    }
+                }
+            }
+        } else {
+            if let Ok(version) = remote_desktop_portal::version(&portal) {
+                if version >= 2 {
                     if let Some(restore_token) = r.results.get(RESTORE_TOKEN) {
                         if let Some(restore_token) = restore_token.as_str() {
                             config::LocalConfig::set_option(
